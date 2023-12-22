@@ -8,7 +8,8 @@ import {
   userLeave,
   getRoomUsers,
 } from "../../utils/users";
-
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faPaperPlane } from "@fortawesome/free-regular-svg-icons";
 const SERVER = "http://localhost:4000";
 
 function Chat() {
@@ -25,7 +26,7 @@ function Chat() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    const newSocket = io(SERVER, { query: { username, room }});
+    const newSocket = io(SERVER, { query: { username, room } });
     setSocket(newSocket);
     console.log(`Emitting joinRoom for ${username} in room ${room}`);
     newSocket.emit("joinRoom", { username, room });
@@ -40,7 +41,6 @@ function Chat() {
     });
 
     return () => {
-      //   newSocket.emit("leaveRoom", { username, room });
       newSocket.off("roomUsers", { room, users });
       newSocket.off("message");
       newSocket.close();
@@ -86,7 +86,12 @@ function Chat() {
         {/* Messages */}
         <div className="chat-messages">
           {messages.map((msg, index) => (
-            <div key={index} className="message">
+            <div
+              key={index}
+              className={`message ${
+                msg.username === username ? "outgoing" : "incoming"
+              }`}
+            >
               <p className="meta">
                 {msg.username} <span>{msg.time}</span>
               </p>
@@ -108,7 +113,10 @@ function Chat() {
             required
             autoComplete="off"
           />
-          <button className="btn">Send</button>
+          <button className="btn">
+            <FontAwesomeIcon icon={faPaperPlane} />
+            Send
+          </button>
         </form>
       </div>
     </div>

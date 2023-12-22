@@ -82,7 +82,18 @@ a {
 }
 
 .chat-sidebar ul li {
-	padding: 10px 0;
+    padding: 10px 0;
+    cursor: pointer;
+    color: var(--dark-color-a);
+    background-color: var(--light-color);
+    margin-bottom: 5px;
+    text-align: center;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.chat-sidebar ul li:hover {
+    background-color: var(--success-color);
 }
 
 .chat-messages {
@@ -188,3 +199,24 @@ a {
 		display: none;
 	}
 }
+
+/* Messages alignment */
+.chat-messages .message.outgoing {
+    margin-left: auto;
+    background-color: var(--light-color); /* Change color as needed */
+  }
+  
+  .chat-messages .message.incoming {
+    margin-right: auto;
+    background-color: var(--light-color); /* Existing color */
+  }
+  
+  /* Messages general styling */
+  .chat-messages .message {
+    display: flex;
+    flex-direction: column;
+    padding: 10px;
+    border-radius: 5px;
+    max-width: 50%; /* Set a max-width for messages */
+    overflow-wrap: break-word;
+  }
