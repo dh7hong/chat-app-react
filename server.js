@@ -7,6 +7,8 @@ const {
   getCurrentUser,
   userLeave,
   getRoomUsers,
+  getCurrentUserByUsername,
+  userLeaveByName,
 } = require("./src/utils/users");
 const cors = require("cors");
 
@@ -20,64 +22,110 @@ const io = socketio(server, {
 });
 
 const botName = "ChatBot";
-const userConnections = new Map();
+
 
 io.on("connection", (socket) => {
-    // Retrieve username and room from the socket
-    const username = socket.handshake.query.username;
-    const room = socket.handshake.query.room; // Make sure the client sends 'room' in query
+  socket.on("joinRoom", ({ username, room, isInitialJoin }) => {
+    const existingUser = getCurrentUser(socket.id);
+    console.log(`existingUser: ${JSON.stringify(existingUser)}`);
+    console.log(`existingUser.room: ${existingUser?.room}`);
+    console.log(`room trying to join: ${room}`);
 
-    // Disconnect existing connection if it exists
-    if (userConnections.has(username)) {
-        const existingSocket = userConnections.get(username);
-        existingSocket.disconnect(true);
+    // Check if the user is already in the room they are trying to join
+    if (existingUser && existingUser.room === room) {
+      console.log(`${username} tried to join the same room: ${room}`);
+      return;
     }
 
-    // Add the new socket to the map
-    userConnections.set(username, socket);
+    // Handle the case when a user switches rooms
+    if (existingUser && existingUser.room !== room) {
+      // User is switching to a new room
+      console.log(
+        `${existingUser?.username} is switching to a new room: ${room}`
+      );
+    
+      // Update the user list in the old room
+      io.to(existingUser.room).emit("roomUsers", {
+        room: existingUser.room,
+        users: getRoomUsers(existingUser.room).filter(
+          (u) => u.id !== socket.id
+        ),
+      });
+    
+      // Now actually leave the old room and then join the new room in the callback
+      socket.leave(existingUser.room, () => {
+        // Remove the user from the old room in your users array
+        userLeave(socket.id);
+    
+        // Add or update the user in the new room
+        const newUser = userJoin(socket.id, username, room);
+        socket.join(newUser.room);
+    
+        // Rest of the code for joining the new room...
+      });
+    }
 
-    // Join the user to the room
-    const user = userJoin(socket.id, username, room);
-    socket.join(user.room);
+    // Add or update the user in the new room
+    const newUser = userJoin(socket.id, username, room);
+    socket.join(newUser.room);
 
-    // Welcome current user
-    socket.emit("message", formatMessage(botName, "Welcome to ChatBoard!"));
+    // Send a welcome message only on initial join
+    if (isInitialJoin) {
+      socket.emit("message", formatMessage(botName, "Welcome to ChatBoard!"));
+    }
 
-    // Broadcast when a new user connects
-    socket.broadcast.to(user.room).emit(
+    // Notify others in the new room
+    socket.broadcast
+      .to(newUser.room)
+      .emit(
         "message",
-        formatMessage(botName, `${user.username} has joined the chat`)
-    );
+        formatMessage(botName, `${username} has joined the chat`)
+      );
 
-    // Update the room's user list
-    io.to(user.room).emit("roomUsers", {
+    // Send updated users list to the new room
+    io.to(newUser.room).emit("roomUsers", {
+      room: newUser.room,
+      users: getRoomUsers(newUser.room),
+    });
+  });
+
+  // Listen for chatMessage
+  socket.on("chatMessage", (msg) => {
+    const user = getCurrentUser(socket.id);
+    if (user) {
+      io.to(user.room).emit("message", formatMessage(user.username, msg));
+    }
+  });
+
+  // Runs when client disconnects
+  socket.on("disconnect", () => {
+    const user = userLeave(socket.id);
+
+    if (user) {
+      io.to(user.room).emit(
+        "message",
+        formatMessage(botName, `${user.username} has left the chat`)
+      );
+
+      // Send users and room info
+      io.to(user.room).emit("roomUsers", {
         room: user.room,
         users: getRoomUsers(user.room),
-    });
+      });
+    }
+  });
 
-    // Handle chatMessage event
-    socket.on("chatMessage", (msg) => {
-        const user = getCurrentUser(socket.id);
-        if (user) {
-            io.to(user.room).emit("message", formatMessage(user.username, msg));
-        }
-    });
+  // Handling private chat initiation
 
-    // Handle disconnect event
-    socket.on("disconnect", () => {
-        const user = userLeave(socket.id);
-        if (user) {
-            io.to(user.room).emit(
-                "message",
-                formatMessage(botName, `${user.username} has left the chat`)
-            );
-            io.to(user.room).emit("roomUsers", {
-                room: user.room,
-                users: getRoomUsers(user.room),
-            });
-            userConnections.delete(username);
-        }
-    });
+  socket.on("initiatePrivateChat", ({ initiator, recipient, room }) => {
+    const recipientUser = getCurrentUserByUsername(recipient);
+    if (recipientUser) {
+      io.to(recipientUser.id).emit("privateChatInvitation", {
+        from: initiator,
+        room,
+      });
+    }
+  });
 });
 
 const PORT = process.env.PORT || 4000;
