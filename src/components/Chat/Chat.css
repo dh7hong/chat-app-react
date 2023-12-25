@@ -1,8 +1,9 @@
 @import url("https://fonts.googleapis.com/css?family=Roboto&display=swap");
 
 :root {
-  --dark-color-a: #667aff;
+  --dark-color-a: #2b3ba3;
   --dark-color-b: #7386ff;
+  --dark-color-c: #949ed6;  
   --light-color: #e6e9ff;
   --success-color: #5cb85c;
   --error-color: #d9534f;
@@ -67,6 +68,7 @@ a {
   background: var(--dark-color-b);
   color: #fff;
   padding: 20px 20px 60px;
+  max-height: 400px;
   overflow-y: scroll;
 }
 
@@ -98,7 +100,7 @@ a {
 
 .chat-messages {
   padding: 30px;
-  max-height: 500px;
+  max-height: 400px;
   overflow-y: scroll;
 }
 
@@ -138,58 +140,6 @@ a {
   flex: 1;
 }
 
-/* Join Page */
-.join-container {
-  max-width: 500px;
-  margin: 80px auto;
-  color: #fff;
-}
-
-.join-header {
-  text-align: center;
-  padding: 20px;
-  background: var(--dark-color-a);
-  border-top-left-radius: 5px;
-  border-top-right-radius: 5px;
-}
-
-.join-main {
-  padding: 30px 40px;
-  background: var(--dark-color-b);
-}
-
-.join-main p {
-  margin-bottom: 20px;
-}
-
-.join-main .form-control {
-  margin-bottom: 20px;
-}
-
-.join-main label {
-  display: block;
-  margin-bottom: 5px;
-}
-
-.join-main input[type="text"] {
-  font-size: 16px;
-  padding: 5px;
-  height: 40px;
-  width: 100%;
-}
-
-.join-main select {
-  font-size: 16px;
-  padding: 5px;
-  height: 40px;
-  width: 100%;
-}
-
-.join-main .btn {
-  margin-top: 20px;
-  width: 100%;
-}
-
 @media (max-width: 700px) {
   .chat-main {
     display: block;
@@ -220,3 +170,16 @@ a {
   max-width: 50%; /* Set a max-width for messages */
   overflow-wrap: break-word;
 }
+
+.chat-sidebar ul li.current-user {
+	background-color: var(--dark-color-a); /* Or any color of your choice */
+	color: #fff; /* Optional: change the text color */
+	font-weight: bold; /* Optional: make the username bold */
+  }
+
+  .current-chat-partner {
+	background-color: var(--dark-color-a); /* Or any color of your choice */
+	color: #fff; /* Change the text color if needed */
+	font-weight: bold; /* Make the username bold */
+	/* Add any other styles you want for highlighting */
+  }

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import "./Join.css"; // Your custom CSS
 import io from "socket.io-client";
 import SocketContext from "../../SocketContext";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSmile} from "@fortawesome/free-regular-svg-icons";
 
 const SERVER = "http://localhost:4000";
 
@@ -34,7 +36,7 @@ function Join() {
     <div className="join-container">
       <header className="join-header">
         <h1>
-          <i className="fas fa-smile"></i> ChatCord
+          <FontAwesomeIcon icon={faSmile}/> Lift
         </h1>
       </header>
       <main className="join-main">

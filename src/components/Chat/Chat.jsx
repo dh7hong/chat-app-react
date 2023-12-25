@@ -33,7 +33,7 @@ export const BoardWrapper = styled.div`
   width: 100%;
   align-items: center;
   text-align: center;
-  padding: 10px 0px; // Add padding to match the BoardWrapper layout
+  padding: 0px 0px; // Add padding to match the BoardWrapper layout
   font-size: 25px;
 `;
 
@@ -45,7 +45,7 @@ function Chat() {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false); // State for showing/hiding the modal
   const [modalContent, setModalContent] = useState({ from: "", room: "" }); // Content of the modal
-
+  
   const location = useLocation();
   const navigate = useNavigate();
   const socket = useContext(SocketContext);
@@ -172,11 +172,11 @@ function Chat() {
                       className="btn"
                       onClick={handleAcceptInvitation}
                     >
-                      Accept
+                      O
                     </button>
 
                     <button className="btn" onClick={handleDeclineInvitation}>
-                      Decline
+                      X
                     </button>
                   </p>
                 </div>
@@ -187,7 +187,7 @@ function Chat() {
             To Lobby
           </a>
           <a href="\" className="btn">
-            To Beginning
+            Start
           </a>
         </RowStyle>
       </header>
@@ -197,16 +197,17 @@ function Chat() {
         {/* User List */}
         <div className="chat-sidebar">
           <h3>Room:</h3>
-          <ul>
+          <ul style ={{marginBottom: "10px"}} >
             <li style={{}} className="btn">
               {room.replace(username, "").replace("-", "")}
             </li>
           </ul>
-          <h3>Users</h3>
+          <h3>Users:</h3>
           <ul>
             {users.map((user, index) => (
               <li
                 key={index}
+                className={user.username === username ? "current-user" : ""}
                 onClick={() => initiatePrivateChat(user.username)}
               >
                 {user.username}
@@ -256,14 +257,3 @@ function Chat() {
 }
 
 export default Chat;
-
-// Helper function to generate a random room ID
-const generateRandomId = () => {
-  let date = new Date();
-  let milliseconds =
-    date.getHours() * 60 * 60 * 1000 +
-    date.getMinutes() * 60 * 1000 +
-    date.getSeconds() * 1000 +
-    date.getMilliseconds();
-  return milliseconds;
-};
