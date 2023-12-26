@@ -55,11 +55,25 @@ const userLeaveByName = (username) => {
   }
 };
 
+const isUserInRoom = (username, room) => {
+  return users.some((user) => user.username === username && user.room === room);
+};
+
+const getAllUsers = () => {
+  return users.map((user) => {
+    return {
+      username: user.username,
+    };
+  });
+};
+
 module.exports = {
   userJoin,
   getCurrentUser,
   userLeave,
   getRoomUsers,
   getCurrentUserByUsername,
-  userLeaveByName
+  userLeaveByName,
+  isUserInRoom,
+  getAllUsers,
 };
