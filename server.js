@@ -148,7 +148,7 @@ io.on("connection", (socket) => {
       };
       addMessage(newMessage)
         .then(() => {
-          console.log(`Message added: ${JSON.stringify(newMessage).text}`);
+          console.log(`Message added: ${newMessage.text}`);
         })
         .catch((err) => console.error(err));
     }
