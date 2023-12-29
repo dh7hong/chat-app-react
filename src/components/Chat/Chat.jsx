@@ -2,13 +2,6 @@ import React, { useState, useEffect, useRef, useContext } from "react";
 import io from "socket.io-client";
 import "./Chat.css"; // Assume you have a CSS file for styles
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import {
-  userJoin,
-  getCurrentUser,
-  userLeave,
-  getRoomUsers,
-  getCurrentUserByUsername,
-} from "../../utils/users";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPaperPlane } from "@fortawesome/free-regular-svg-icons";
 import SocketContext from "../../SocketContext";
@@ -38,13 +31,8 @@ export const BoardWrapper = styled.div`
   font-size: 25px;
 `;
 
-const SERVER = "http://localhost:4000";
-
 const getOtherUsername = (roomName, currentUsername) => {
-  return roomName
-    .split("-")
-    .filter((name) => name !== currentUsername)
-    .join("-");
+  return roomName.split("--").filter((name) => name !== currentUsername);
 };
 
 function Chat() {
@@ -62,31 +50,26 @@ function Chat() {
 
   useEffect(() => {
     if (socket) {
-      socket.on("joinPrivateRoom", (newRoom) => {
-        navigate(`/chat?username=${username}&room=${newRoom}`);
+      socket.on("lobbyUsers", ({ users }) => {
+        setUsers(users);
+      });
+
+      socket.on("invitationToPrivateChat", ({ room, from, to }) => {
+        if (username === to) {
+          navigate(`/chat?username=${username}&room=${room}`);
+        }
       });
 
       return () => {
-        socket.off("joinPrivateRoom");
-      };
-    }
-  }, [socket, navigate, username]);
-
-  useEffect(() => {
-    if (socket) {
-      socket.on("updateRoom", ({ newRoom }) => {
-        navigate(`/chat?username=${username}&room=${newRoom}`);
-      });
-
-      return () => {
-        socket.off("updateRoom");
+        socket.off("lobbyUsers");
+        socket.off("invitationToPrivateChat");
       };
     }
   }, [socket, navigate, username]);
 
   useEffect(() => {
     if (socket && room && username) {
-      socket.emit("joinRoom", { username, room, isInitialJoin: true });
+      socket.emit("joinRoom", { username, room });
 
       const onRoomUsers = ({ users }) => {
         setUsers(users);
@@ -113,20 +96,13 @@ function Chat() {
     // You can add here other state resets if needed
   }, [room]);
 
-  // const sendMessage = (e) => {
-  //   e.preventDefault();
-  //   if (message && socket) {
-  //     socket.emit("chatMessage", message);
-  //     console.log(`Emitting chatMessage: ${message}\nsocket: ${socket.id}`);
-  //     setMessage("");
-  //   }
-  // };
   const sendMessage = (e) => {
     e.preventDefault();
-    if (message && socket) {
+    if (message && socket && room) {
       // Include the room name in the message data
-      console.log(`Emitting chatMessage: ${message}\nsocket: ${socket.id}`)
+      console.log(`Emitting chatMessage: ${message}\nsocket: ${socket.id}`);
       socket.emit("chatMessage", { text: message, room });
+      console.log(`chatMessage room: ${room}`);
       setMessage("");
     }
   };
@@ -134,7 +110,7 @@ function Chat() {
   // Function to initiate private chat
   const initiatePrivateChat = (recipient) => {
     if (username !== recipient) {
-      const privateRoomId = [username, recipient].sort().join("-");
+      const privateRoomId = [username, recipient].sort().join("--");
 
       // Navigate the current user (John) to the new private chat room
       navigate(`/chat?username=${username}&room=${privateRoomId}`);
@@ -147,6 +123,7 @@ function Chat() {
       });
     }
   };
+
   const toLobby = () => {
     navigate(`/chat?username=${username}&room=Lobby`);
   };
@@ -154,6 +131,22 @@ function Chat() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (socket) {
+      // Listening for previousMessages event
+      socket.on("previousMessages", (messages) => {
+        // Handle the array of room messages
+        // For instance, you can set these messages to your state
+        setMessages(messages);
+      });
+
+      return () => {
+        // Clean up the listener when the component unmounts
+        socket.off("previousMessages");
+      };
+    }
+  }, [socket]);
 
   return (
     <div className="chat-container">
@@ -181,13 +174,13 @@ function Chat() {
       <main className="chat-main">
         {/* User List */}
         <div className="chat-sidebar">
-          <h3>In chat with:</h3>
+          <h3>In chat:</h3>
           <ul style={{ marginBottom: "10px" }}>
             <li style={{}} className="btn">
               {getOtherUsername(room, username)}
             </li>
           </ul>
-          <h3>Users:</h3>
+          <h3>Friends:</h3>
           <ul>
             {users.map((user, index) => (
               <li

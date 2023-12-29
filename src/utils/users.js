@@ -1,20 +1,31 @@
 const users = [];
 
-// Join user to chat
+// Join user to chat or update their room
 const userJoin = (id, username, room) => {
-  console.log(`userJoin: ${id} ${username} ${room}`);
+  let alreadyInRoom = false;
+  let previousRoom = null;
   let user = getCurrentUser(id);
+  
   if (user) {
-    // Update the room for an existing user
-    user.room = room;
-    console.log(`userJoin => users from utils: ${JSON.stringify(users)}`);
+    previousRoom = user.room;
+    // Check if the user is already in the specified room
+    if (user.room === room) {
+      alreadyInRoom = true;
+      console.log(`userJoin => user already in room: ${JSON.stringify(user)}`);
+    } else {
+      // Update the room for an existing user
+      user.room = room;
+      console.log(`userJoin => updating user: ${JSON.stringify(user)}`);
+    }
   } else {
     // Create a new user
     user = { id, username, room };
     users.push(user);
-    console.log(`userJoin => users from utils: ${JSON.stringify(users)}`);
+    console.log(`userJoin => adding user: ${JSON.stringify(user)}`);
   }
-  return user;
+
+  console.log(`userJoin => users: ${JSON.stringify(users)}`);
+  return { ...user, alreadyInRoom, previousRoom };
 };
 
 // Get current user

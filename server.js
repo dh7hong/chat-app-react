@@ -1,3 +1,7 @@
+const fs = require("fs");
+const path = require("path");
+const moment = require("moment");
+
 const http = require("http");
 const express = require("express");
 const socketio = require("socket.io");
@@ -7,10 +11,7 @@ const {
   getCurrentUser,
   userLeave,
   getRoomUsers,
-  getCurrentUserByUsername,
-  userLeaveByName,
-  isUserInRoom,
-  getAllUsers
+  getAllUsers,
 } = require("./src/utils/users");
 const cors = require("cors");
 
@@ -23,134 +24,156 @@ const io = socketio(server, {
   },
 });
 
-const botName = "ChatBot";
+const dbPath = path.join(__dirname, "db_chat.json");
 
-const emitUpdatedUserList = (room) => {
-  io.to(room).emit("roomUsers", {
-    room,
-    users: getRoomUsers(room),
+function readMessages() {
+  return new Promise((resolve, reject) => {
+    fs.readFile(dbPath, 'utf8', (err, data) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      let jsonData = JSON.parse(data || '{}');
+      resolve(jsonData.conversations || []);
+    });
   });
-};
+}
+
+function writeMessages(conversations) {
+  let dataToWrite = JSON.stringify({ conversations }, null, 2);
+  return new Promise((resolve, reject) => {
+    fs.writeFile(dbPath, dataToWrite, 'utf8', err => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+async function addMessage(newMessage) {
+  const conversations = await readMessages();
+  conversations.push(newMessage);
+  return await writeMessages(conversations);
+}
 
 const emitUpdatedLobbyUserList = () => {
-  const allUsersIncludingPrivate = getAllUsers(); // Assume this function returns all connected users
-  io.to("Lobby").emit("roomUsers", {
-    room: "Lobby",
-    users: allUsersIncludingPrivate,
+  const usersInLobby = getAllUsers(); // Assume this function returns all connected users
+  io.emit("lobbyUsers", {
+    users: usersInLobby,
   });
 };
+
+const dateTime = moment().format("MM/DD/YY, hh:mm A");
 
 io.on("connection", (socket) => {
   socket.on("joinRoom", ({ username, room }) => {
-    const existingUser = getCurrentUser(socket.id);
-    console.log(`existingUser: ${JSON.stringify(existingUser)}`);
-    console.log(`existingUser.room: ${existingUser?.room}`);
-    console.log(`room trying to join: ${room}`);
+    const joinResult = userJoin(socket.id, username, room);
 
-    // Check if the user is already in the room they are trying to join
-    // if (existingUser && existingUser.room === room) {
-    //   console.log(`${username} tried to join the same room: ${room}`);
-    //   return;
-    // }
-
-    // Handle the case when a user switches rooms
-    if (existingUser && existingUser.room !== room) {
-      // User is switching to a new room
+    if (!joinResult.alreadyInRoom) {
       console.log(
-        `${existingUser?.username} is switching to a new room: ${room}`
+        `Check if the user, ${joinResult.username}, is already in the room.`
       );
 
-      // Update the user list in the old room
-      io.to(existingUser.room).emit("roomUsers", {
-        room: existingUser.room,
-        users: getRoomUsers("Lobby"),
-      });
+      // Leave the previous room if different from the current one
+      if (
+        joinResult.previousRoom &&
+        joinResult.previousRoom !== joinResult.room
+      ) {
+        socket.leave(joinResult.previousRoom);
+      }
 
-      // Now actually leave the old room and then join the new room in the callback
-      socket.leave(existingUser.room, () => {
-        // Remove the user from the old room in your users array
-        userLeave(socket.id);
-      });
+      socket.join(joinResult.room);
+      console.log(
+        `Notify the room that a new user, ${joinResult.username}, has joined.`
+      );
+
+      // Notify the room that a new user has joined
+      io.to(joinResult.room).emit(
+        "message",
+        formatMessage("Chatbot", `${username} has joined`)
+      );
+
+      // Update the lobby user list
+      emitUpdatedLobbyUserList();
+
+      readMessages()
+        .then((messages) => {
+          const roomMessages = messages.filter(
+            (message) => message.room === room
+          );
+          socket.emit("previousMessages", roomMessages);
+        })
+        .catch((err) => console.error(err));
     }
+  });
+  socket.on("initiatePrivateChat", ({ initiator, recipient }) => {
+    const privateRoomId = [initiator, recipient].sort().join("--");
 
-    // Add or update the user in the new room
-    const newUser = userJoin(socket.id, username, room);
-    socket.join(newUser.room);
+    // Join the initiator to the private room
+    socket.join(privateRoomId);
 
-    // Notify others in the new room
-    console.log(`newUser Room: ${JSON.stringify(newUser.room)}`);
-    socket.broadcast
-      .to(newUser.room)
-      .emit("message", formatMessage(botName, `${username} has joined.`));
-
-    // Send updated users list to the new room
-    // emitUpdatedUserList(room);
+    // Notify the recipient to join the private room
+    socket.broadcast.emit("invitationToPrivateChat", {
+      room: privateRoomId,
+      from: initiator,
+      to: recipient,
+    });
     emitUpdatedLobbyUserList();
   });
 
-  // Listen for chatMessage
   socket.on("chatMessage", ({ text, room }) => {
-    const user = getCurrentUser(socket.id);
-    if (user && user.room === room) {
-      io.to(room).emit("message", formatMessage(user.username, text));
+    const sender = getCurrentUser(socket.id);
+    if (!sender || sender.room !== room) {
+      // If the sender is not in the specified room, do not broadcast the message
+      return;
+    }
+
+    // Get all users in the room
+    const usersInRoom = getRoomUsers(room);
+
+    // Check if the recipient is in the same room as the sender
+    usersInRoom.forEach((user) => {
+      // Emit message to each user in the room including the sender
+      io.to(user.id).emit("message", formatMessage(sender.username, text));
+    });
+
+    if (sender && sender.room === room) {
+      const newMessage = {
+        username: sender.username,
+        text: text,
+        time: dateTime,
+        room: room,
+      };
+      addMessage(newMessage)
+        .then(() => {
+          console.log(`Message added: ${JSON.stringify(newMessage).text}`);
+        })
+        .catch((err) => console.error(err));
     }
   });
-
-  
 
   // Runs when client disconnects
   socket.on("disconnect", () => {
     const user = userLeave(socket.id);
 
     if (user) {
+      console.log(`${user.username} has disconnected`);
+
+      // Any additional logic that needs to be executed when a user disconnects
+      // For example, notifying other users in the same room
       io.to(user.room).emit(
         "message",
-        formatMessage(botName, `${user.username} has gone offline.`)
+        formatMessage("Chatbot", `${user.username} has left the chat`)
       );
 
-      // Send users and room info
-      // emitUpdatedUserList(user.room);
+      // Update the lobby user list
       emitUpdatedLobbyUserList();
+    } else {
+      console.log("A user disconnected, but was not found in the user list");
     }
   });
-  socket.on("initiatePrivateChat", ({ initiator, recipient }) => {
-    const privateRoomId = [initiator, recipient].sort().join("-");
-
-    // Join the initiator to the private room
-    const initiatorUser = getCurrentUserByUsername(initiator);
-    if (initiatorUser) {
-      initiatorUser.room = privateRoomId; // Update user's room
-      socket.to(initiatorUser.id).emit("joinPrivateRoom", privateRoomId);
-      emitUpdatedLobbyUserList();
-    }
-
-    // Join the recipient to the private room
-    const recipientUser = getCurrentUserByUsername(recipient);
-    if (recipientUser) {
-      recipientUser.room = privateRoomId; // Update user's room
-      io.to(recipientUser.id).emit("joinPrivateRoom", privateRoomId);
-      emitUpdatedLobbyUserList();
-    }
-  });
-  // socket.on("switchPrivateChat", ({ username, recipient, newRoom }) => {
-  //   const currentUserSocket = getCurrentUserByUsername(username)?.id;
-  //   const recipientSocket = getCurrentUserByUsername(recipient)?.id;
-  //   if (newRoom.includes(recipient) && newRoom.includes(username)) {
-  //     // Notify both users to move to the new private chat
-  //     io.to(currentUserSocket).emit("updateRoom", { newRoom });
-  //     io.to(recipientSocket).emit("updateRoom", { newRoom });
-  //   }
-  //   if (newRoom.includes(recipient) && !newRoom.includes(username)) {
-  //     // Notify recipient to move to the new private chat
-  //     io.to(recipientSocket).emit("updateRoom", { newRoom });
-  //     io.to(currentUserSocket).emit("updateRoom", { newRoom: "Lobby" });
-  //   }
-  //   if (newRoom.includes(username) && !newRoom.includes(recipient)) {
-  //     // Notify initiating user to move to the new private chat
-  //     io.to(currentUserSocket).emit("updateRoom", { newRoom });
-  //     io.to(recipientSocket).emit("updateRoom", { newRoom: "Lobby" });
-  //   }
-  // });
 });
 
 const PORT = process.env.PORT || 4000;
