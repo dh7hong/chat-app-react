@@ -28,12 +28,12 @@ const dbPath = path.join(__dirname, "db_chat.json");
 
 function readMessages() {
   return new Promise((resolve, reject) => {
-    fs.readFile(dbPath, 'utf8', (err, data) => {
+    fs.readFile(dbPath, "utf8", (err, data) => {
       if (err) {
         reject(err);
         return;
       }
-      let jsonData = JSON.parse(data || '{}');
+      let jsonData = JSON.parse(data || "{}");
       resolve(jsonData.conversations || []);
     });
   });
@@ -42,7 +42,7 @@ function readMessages() {
 function writeMessages(conversations) {
   let dataToWrite = JSON.stringify({ conversations }, null, 2);
   return new Promise((resolve, reject) => {
-    fs.writeFile(dbPath, dataToWrite, 'utf8', err => {
+    fs.writeFile(dbPath, dataToWrite, "utf8", (err) => {
       if (err) {
         reject(err);
         return;
@@ -148,7 +148,10 @@ io.on("connection", (socket) => {
       };
       addMessage(newMessage)
         .then(() => {
+          console.log(`Username: ${newMessage.username}`);
           console.log(`Message added: ${newMessage.text}`);
+          console.log(`Time: ${newMessage.time}`);
+          console.log(`Room: ${newMessage.room}`);
         })
         .catch((err) => console.error(err));
     }
