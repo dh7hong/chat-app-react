@@ -156,14 +156,14 @@ function Chat() {
           <h1>
             <FontAwesomeIcon icon={faPaperPlane} />" Lift
           </h1>
-          <a>
+          <div>
             <BoardWrapper>
               <div></div>
             </BoardWrapper>
-          </a>
-          <a style={{}} onClick={() => toLobby()} className="btn">
+          </div>
+          <button style={{}} onClick={() => toLobby()} className="btn">
             To Lobby
-          </a>
+          </button>
           <a href="\" className="btn">
             Start
           </a>
