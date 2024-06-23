@@ -12,7 +12,6 @@ const {
   getRoomUsers,
   getAllUsers,
 } = require("./src/utils/users");
-const { MongoClient } = require('mongodb');
 const cors = require("cors");
 
 const app = express();
@@ -24,41 +23,42 @@ const io = socketio(server, {
   },
 });
 
-const uri = 'mongodb+srv://dh7hong:UvTQ49llkpDNSphr@chat-app-react.zyrvmsk.mongodb.net/?retryWrites=true&w=majority&appName=chat-app-react';
-const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true });
-
-let db;
-
-async function connectToDatabase() {
-  if (!db) {
-    try {
-      await client.connect();
-      db = client.db('chat-app-react');
-      console.log('Connected to MongoDB');
-    } catch (err) {
-      console.error(err);
-    }
-  }
-  return db;
-}
+const dbPath = path.join(__dirname, "db.json");
 
 app.use(cors()); // Enable CORS
 
-async function readMessages() {
-  const db = await connectToDatabase();
-  const conversations = await db.collection('conversations').find().toArray();
-  return conversations;
+// Read messages from db.json
+function readMessages() {
+  return new Promise((resolve, reject) => {
+    fs.readFile(dbPath, "utf8", (err, data) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      let jsonData = JSON.parse(data || "{}");
+      resolve(jsonData.conversations || []);
+    });
+  });
 }
 
-async function writeMessages(conversations) {
-  const db = await connectToDatabase();
-  await db.collection('conversations').deleteMany({});
-  await db.collection('conversations').insertMany(conversations);
+// Write messages to db.json
+function writeMessages(conversations) {
+  let dataToWrite = JSON.stringify({ conversations }, null, 2);
+  return new Promise((resolve, reject) => {
+    fs.writeFile(dbPath, dataToWrite, "utf8", (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
 }
 
 async function addMessage(newMessage) {
-  const db = await connectToDatabase();
-  await db.collection('conversations').insertOne(newMessage);
+  const conversations = await readMessages();
+  conversations.push(newMessage);
+  return await writeMessages(conversations);
 }
 
 const emitUpdatedLobbyUserList = () => {
@@ -69,7 +69,7 @@ const emitUpdatedLobbyUserList = () => {
 };
 
 io.on("connection", (socket) => {
-  socket.on("joinRoom", async ({ username, room }) => {
+  socket.on("joinRoom", ({ username, room }) => {
     const joinResult = userJoin(socket.id, username, room);
 
     if (!joinResult.alreadyInRoom) {
@@ -83,15 +83,14 @@ io.on("connection", (socket) => {
 
       emitUpdatedLobbyUserList();
 
-      try {
-        const messages = await readMessages();
-        const roomMessages = messages.filter(
-          (message) => message.room === room
-        );
-        socket.emit("previousMessages", roomMessages);
-      } catch (err) {
-        console.error(err);
-      }
+      readMessages()
+        .then((messages) => {
+          const roomMessages = messages.filter(
+            (message) => message.room === room
+          );
+          socket.emit("previousMessages", roomMessages);
+        })
+        .catch((err) => console.error(err));
     }
   });
 
@@ -107,7 +106,7 @@ io.on("connection", (socket) => {
     emitUpdatedLobbyUserList();
   });
 
-  socket.on("chatMessage", async ({ text, room }) => {
+  socket.on("chatMessage", ({ text, room }) => {
     const sender = getCurrentUser(socket.id);
     if (!sender || sender.room !== room) {
       return;
@@ -125,12 +124,11 @@ io.on("connection", (socket) => {
         time: moment().format("MM/DD/YY, hh:mm A"),
         room: room,
       };
-      try {
-        await addMessage(newMessage);
-        console.log(`Message added: ${newMessage.text}`);
-      } catch (err) {
-        console.error(err);
-      }
+      addMessage(newMessage)
+        .then(() => {
+          console.log(`Message added: ${newMessage.text}`);
+        })
+        .catch((err) => console.error(err));
     }
   });
 

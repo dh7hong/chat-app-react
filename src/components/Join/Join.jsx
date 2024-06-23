@@ -4,7 +4,7 @@ import "./Join.css"; // Your custom CSS
 import io from "socket.io-client";
 import SocketContext from "../../SocketContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSmile} from "@fortawesome/free-regular-svg-icons";
+import { faSmile } from "@fortawesome/free-regular-svg-icons";
 
 const SERVER = "http://localhost:4000";
 
@@ -12,7 +12,7 @@ function Join() {
   const [username, setUsername] = useState("");
   const [room, setRoom] = useState("Lobby");
   const navigate = useNavigate();
-  //   const socket = io(SERVER);
+  //const socket = io(SERVER);
   const socket = useContext(SocketContext);
 
   const handleUsernameChange = (event) => {
@@ -36,7 +36,7 @@ function Join() {
     <div className="join-container">
       <header className="join-header">
         <h1>
-          <FontAwesomeIcon icon={faSmile}/> Lift
+          <FontAwesomeIcon icon={faSmile} /> Lift
         </h1>
       </header>
       <main className="join-main">

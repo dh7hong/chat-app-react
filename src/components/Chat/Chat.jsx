@@ -162,9 +162,9 @@ function Chat() {
             </BoardWrapper>
           </div>
           <button style={{}} onClick={() => toLobby()} className="btn">
-            To Lobby
+            Lobby
           </button>
-          <a href="\" className="btn">
+          <a href="/" className="btn">
             Start
           </a>
         </RowStyle>
