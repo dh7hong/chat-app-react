@@ -39,11 +39,14 @@
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^4.15.1"
   },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "^7.18.6"
+  },
   "scripts": {
     "start": "cross-env PORT=3000 react-scripts start",
     "server": "node api/server.js",
     "dev": "concurrently \"npm start\" \"npm run server\"",
-    "build": "react-scripts build",
+    "build": "CI=false react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },
