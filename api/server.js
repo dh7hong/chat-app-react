@@ -4,14 +4,14 @@ const moment = require("moment");
 const http = require("http");
 const express = require("express");
 const socketio = require("socket.io");
-const formatMessage = require("./src/utils/messages");
+const formatMessage = require("../src/utils/messages");
 const {
   userJoin,
   getCurrentUser,
   userLeave,
   getRoomUsers,
   getAllUsers,
-} = require("./src/utils/users");
+} = require("../src/utils/users");
 const { MongoClient } = require('mongodb');
 const cors = require("cors");
 
